@@ -5,10 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('config');
 const { check, validationResult } = require('express-validator');
-let normalize;
-(async () => {
-  normalize = (await import('normalize-url')).default;
-})();
+const normalize = require('normalize-url');
 
 const User = require('../../models/User');
 
@@ -62,11 +59,12 @@ router.post(
 
       await user.save();
 
-      const payload={
-        user:{
-            id:user.id
+      const payload = {
+        user: {
+          id: user.id
         }
-      }
+      };
+
       jwt.sign(
         payload,
         config.get('jwtSecret'),
@@ -76,8 +74,6 @@ router.post(
           res.json({ token });
         }
       );
-
-     
     } catch (err) {
       console.error(err.message);
       res.status(500).send('Server error');
