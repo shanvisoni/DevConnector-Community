@@ -1,19 +1,18 @@
-
-
 const express = require('express');
 const axios = require('axios');
-const config = require('config');
 const router = express.Router();
-const request=require('request');
+const request = require('request');
 const auth = require('../../middleware/auth');
 const { check, validationResult } = require('express-validator');
-// bring in normalize to give us a proper url, regardless of what user entered
 const normalize = require('normalize-url');
 const checkObjectId = require('../../middleware/checkObjectId');
 
 const Profile = require('../../models/Profile');
 const User = require('../../models/User');
 const Post = require('../../models/Post');
+
+// Load environment variables
+require('dotenv').config();
 
 // @route    GET api/profile/me
 // @desc     Get current users profile
@@ -49,7 +48,6 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    // destructure the request
     const {
       website,
       skills,
@@ -58,36 +56,26 @@ router.post(
       instagram,
       linkedin,
       facebook,
-      // spread the rest of the fields we don't need to check
       ...rest
     } = req.body;
 
-    // build a profile
     const profileFields = {
       user: req.user.id,
-      website:
-        website && website !== ''
-          ? normalize(website, { forceHttps: true })
-          : '',
+      website: website ? normalize(website, { forceHttps: true }) : '',
       skills: Array.isArray(skills)
         ? skills
         : skills.split(',').map((skill) => ' ' + skill.trim()),
       ...rest
     };
 
-    // Build socialFields object
     const socialFields = { youtube, twitter, instagram, linkedin, facebook };
 
-    // normalize social fields to ensure valid url
     for (const [key, value] of Object.entries(socialFields)) {
-      if (value && value.length > 0)
-        socialFields[key] = normalize(value, { forceHttps: true });
+      if (value) socialFields[key] = normalize(value, { forceHttps: true });
     }
-    // add to profileFields
     profileFields.social = socialFields;
 
     try {
-      // Using upsert option (creates new doc if no match is found):
       let profile = await Profile.findOneAndUpdate(
         { user: req.user.id },
         { $set: profileFields },
@@ -141,9 +129,6 @@ router.get(
 // @access   Private
 router.delete('/', auth, async (req, res) => {
   try {
-    // Remove user posts
-    // Remove profile
-    // Remove user
     await Promise.all([
       Post.deleteMany({ user: req.user.id }),
       Profile.findOneAndRemove({ user: req.user.id }),
@@ -192,7 +177,6 @@ router.put(
 // @route    DELETE api/profile/experience/:exp_id
 // @desc     Delete experience from profile
 // @access   Private
-
 router.delete('/experience/:exp_id', auth, async (req, res) => {
   try {
     const foundProfile = await Profile.findOne({ user: req.user.id });
@@ -245,7 +229,6 @@ router.put(
 // @route    DELETE api/profile/education/:edu_id
 // @desc     Delete education from profile
 // @access   Private
-
 router.delete('/education/:edu_id', auth, async (req, res) => {
   try {
     const foundProfile = await Profile.findOne({ user: req.user.id });
@@ -260,34 +243,33 @@ router.delete('/education/:edu_id', auth, async (req, res) => {
   }
 });
 
+// @route    GET api/profile/github/:username
+// @desc     Get all repos
+// @access   Public
+router.get('/github/:username', (req, res) => {
+  try {
+    const options = {
+      uri: `https://api.github.com/users/${req.params.username}/repos?per_page=5&sort=created:asc&client_id=${process.env.GITHUB_CLIENT_ID}&client_secret=${process.env.GITHUB_SECRET}`,
+      method: 'GET',
+      headers: { 'user-agent': 'node.js' }
+    };
+    request(options, (error, response, body) => {
+      if (error) {
+        console.error(error);
+        return res
+          .status(500)
+          .json({ msg: 'Server error while fetching GitHub data' });
+      }
 
-
- // @route    GET api/profile/github:username
- // @desc     Get all repos
- // @access   Public
- router.get('/github/:username',(req,res)=>{
-     try {
-         const options={
-             uri:`https://api.github.com/users/${req.params.username}/repos?per_page=5&sort=created:asc$client_id=${config.get('githubClientId')}&client_secret=${config.get('githubSecret')}`,
-             method:'GET',
-             headers:{'user-agent':'node.js'}
-         } 
-         request(options,(error,response,body)=>{
-             if (error) {
-                 console.error(error);
-                 return res.status(500).json({ msg: "Server error while fetching GitHub data" });
-             }
-
-           if(response.statusCode !== 200){
-            return res.status(404).json({msg:"No Github profile found"});
-           }
-           res.json(JSON.parse(body));
-     });
-     } catch (error) {
-         console.error(error.message);
-         res.status(500).send('Server Error');
-     }
- 
- })
+      if (response.statusCode !== 200) {
+        return res.status(404).json({ msg: 'No GitHub profile found' });
+      }
+      res.json(JSON.parse(body));
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send('Server Error');
+  }
+});
 
 module.exports = router;

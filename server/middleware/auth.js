@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
-const config = require('config');
+const dotenv = require('dotenv');
+
+// Load environment variables from .env file
+dotenv.config();
 
 module.exports = function (req, res, next) {
   // Get token from header
@@ -12,7 +15,7 @@ module.exports = function (req, res, next) {
 
   // Verify token
   try {
-    jwt.verify(token, config.get('jwtSecret'), (error, decoded) => {
+    jwt.verify(token, process.env.JWT_SECRET, (error, decoded) => {
       if (error) {
         return res.status(401).json({ msg: 'Token is not valid' });
       } else {
@@ -21,7 +24,7 @@ module.exports = function (req, res, next) {
       }
     });
   } catch (err) {
-    console.error('something wrong with auth middleware');
+    console.error('Something wrong with auth middleware');
     res.status(500).json({ msg: 'Server Error' });
   }
 };
