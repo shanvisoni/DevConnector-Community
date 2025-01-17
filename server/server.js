@@ -18,20 +18,16 @@ app.use((req, res, next) => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
-// app.get('/', (req, res) => {
-//     res.send('API Running');
-// });
+app.get('/', (req, res) => {
+    res.send('API Running');
+});
 
 app.use('/api/users',require('./routes/api/users'));
 app.use('/api/posts',require('./routes/api/posts'));
 app.use('/api/profile',require('./routes/api/profile'));
 app.use('/api/auth',require('./routes/api/auth'));
 
-if(process.env.NODE_ENV === 'production'){
-  app.use(express.static('client/build'))
 
- 
-}
 
 const PORT = process.env.PORT || 5000;
 
